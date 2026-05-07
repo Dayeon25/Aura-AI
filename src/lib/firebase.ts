@@ -1,9 +1,8 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Try to load from environment variables first, then fallback to local config file
-// This ensures portability between AI Studio and external environments like Vercel/GitHub
+// Configuration placeholder
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,22 +13,30 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Fallback logic for AI Studio environment
-let finalConfig = firebaseConfig;
+let app;
 let databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
 
-if (!firebaseConfig.apiKey) {
-  try {
-    // @ts-ignore - Dynamic import to handle missing file in external environments
-    const localConfig = await import('../../firebase-applet-config.json');
-    finalConfig = localConfig.default;
-    databaseId = localConfig.default.firestoreDatabaseId;
-  } catch (e) {
-    console.error("Firebase config missing. Please set environment variables.");
+// Use established pattern for Firebase initialization in Vite
+if (!getApps().length) {
+  if (!firebaseConfig.apiKey) {
+    // If environment variables are missing, we try to load from the local config file
+    // This is common in AI Studio dev environment
+    try {
+      // @ts-ignore - Dynamic import to handle missing file in external environments
+      const localConfig = await import('../../firebase-applet-config.json');
+      app = initializeApp(localConfig.default);
+      databaseId = localConfig.default.firestoreDatabaseId;
+    } catch (e) {
+      console.warn("Firebase environment variables missing and local config not found. Auth may fail.");
+      app = initializeApp(firebaseConfig); // Fallback to empty/env config
+    }
+  } else {
+    app = initializeApp(firebaseConfig);
   }
+} else {
+  app = getApp();
 }
 
-const app = initializeApp(finalConfig);
 export const db = getFirestore(app, databaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
