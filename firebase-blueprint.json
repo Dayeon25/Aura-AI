@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "preferences": { "type": "object" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Book or document content for audiobook processing",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "content": { "type": "string" },
+        "source": { "type": "string", "enum": ["scanner", "upload"] },
+        "category": { "type": "string", "enum": ["fiction", "non-fiction", "technical"] },
+        "language": { "type": "string" },
+        "summary": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "content"]
+    },
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "Save current reading position",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "position": { "type": "integer" },
+        "label": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Interaction": {
+      "title": "Interaction",
+      "description": "Notes, questions, or voice memos related to a book",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["voice", "text", "question"] },
+        "aiAnswer": { "type": "string" },
+        "timestamp": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StudyRoom": {
+      "title": "StudyRoom",
+      "description": "Real-time collaborative study space",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "isAIEnabled": { "type": "boolean" },
+        "activeParticipants": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StudyMessage": {
+      "title": "StudyMessage",
+      "description": "Messages within a study room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["chat", "voice", "ai"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Global user profiles"
+    },
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Uploaded or scanned books"
+    },
+    "/bookmarks/{bookmarkId}": {
+      "schema": "Bookmark",
+      "description": "User bookmarks for books"
+    },
+    "/interactions/{interactionId}": {
+      "schema": "Interaction",
+      "description": "Questions and notes on books"
+    },
+    "/studyRooms/{roomId}": {
+      "schema": "StudyRoom",
+      "description": "Study groups"
+    },
+    "/studyRooms/{roomId}/messages/{messageId}": {
+      "schema": "StudyMessage",
+      "description": "Messages within a room"
+    }
+  }
+}

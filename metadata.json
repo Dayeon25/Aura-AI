@@ -1,0 +1,14 @@
+{
+  "name": "Aura AI (아우라 AI)",
+  "description": "OCR, 멀티 페르소나 TTS, 실시간 협업 및 AI 자동 강의 생성을 지원하는 인공지능 기반 오디오북 & 스터디 랩입니다.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI 기반 OCR",
+    "다역할 TTS (텍스트 음성 변환)",
+    "실시간 스터디룸",
+    "시각장애인을 위한 접근성 기능"
+  ]
+}

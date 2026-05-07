@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { 
+      return request.auth != null && request.auth.token.email_verified == true; 
+    }
+    function isOwner(userId) { 
+      return isSignedIn() && request.auth.uid == userId; 
+    }
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // --- Validation Helpers ---
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+        && data.email is string && data.email.size() <= 256
+        && data.keys().hasAll(['uid', 'email'])
+        && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 200))
+        && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1000))
+        && (data.updatedAt != null);
+    }
+
+    function isValidBook(data) {
+      return data.ownerId == request.auth.uid
+        && data.title is string && data.title.size() <= 500
+        && data.content is string && data.content.size() <= 2000000
+        && (data.category == null || (data.category is string && data.category.size() <= 100))
+        && (data.author == null || (data.author is string && data.author.size() <= 200))
+        && (data.createdAt == request.time || resource != null);
+    }
+
+    function isValidBookmark(data) {
+      return data.userId == request.auth.uid
+        && isValidId(data.bookId)
+        && data.position is int
+        && data.label is string && data.label.size() <= 500
+        && (data.createdAt == request.time || resource != null);
+    }
+
+    function isValidInteraction(data) {
+      return data.userId == request.auth.uid
+        && isValidId(data.bookId)
+        && data.content is string && data.content.size() <= 10000
+        && data.type in ['text', 'voice', 'question']
+        && (data.aiAnswer == null || (data.aiAnswer is string && data.aiAnswer.size() <= 10000))
+        && (data.timestamp == null || data.timestamp is int)
+        && (data.createdAt == request.time || resource != null);
+    }
+
+    function isValidStudyRoom(data) {
+      return data.creatorId == request.auth.uid
+        && data.name is string && data.name.size() <= 256
+        && data.isAIEnabled is bool
+        && (data.createdAt == request.time || resource != null);
+    }
+
+    function isValidMessage(data) {
+      return (data.userId == request.auth.uid || data.userId == 'ai-assistant')
+        && data.text is string && data.text.size() <= 20000
+        && data.type in ['chat', 'voice', 'ai']
+        && (data.userName == null || (data.userName is string && data.userName.size() <= 200))
+        && (data.userPhoto == null || (data.userPhoto is string && data.userPhoto.size() <= 1000))
+        && (data.createdAt == request.time || resource != null);
+    }
+
+    // --- Path Assignments ---
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId) && isOwner(userId) && isValidUser(incoming());
+      allow update: if isValidId(userId) && isOwner(userId) && isValidUser(incoming()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'preferences']);
+    }
+
+    match /books/{bookId} {
+      allow get: if isValidId(bookId) && isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isValidId(bookId) && isSignedIn() && isValidBook(incoming());
+      allow update: if isValidId(bookId) && isSignedIn() && isOwner(existing().ownerId) && isValidBook(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'author', 'category', 'content', 'summary', 'updatedAt']);
+      allow delete: if isValidId(bookId) && isSignedIn() && isOwner(existing().ownerId);
+    }
+
+    match /bookmarks/{bookmarkId} {
+      allow get: if isValidId(bookmarkId) && isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isValidId(bookmarkId) && isSignedIn() && isValidBookmark(incoming());
+      allow delete: if isValidId(bookmarkId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /interactions/{interactionId} {
+      allow get: if isValidId(interactionId) && isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isValidId(interactionId) && isSignedIn() && isValidInteraction(incoming());
+    }
+
+    match /studyRooms/{roomId} {
+      allow get: if isValidId(roomId) && isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isValidId(roomId) && isSignedIn() && isValidStudyRoom(incoming());
+      allow update: if isValidId(roomId) && isSignedIn() && (isOwner(existing().creatorId) || incoming().diff(existing()).affectedKeys().hasOnly(['activeParticipants', 'isAIEnabled']));
+    }
+
+    match /studyRooms/{roomId}/messages/{messageId} {
+      allow get: if isValidId(messageId) && isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isValidId(messageId) && isSignedIn() && isValidMessage(incoming());
+    }
+  }
+}
